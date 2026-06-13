@@ -325,8 +325,4 @@ The current implementation uses Twilio for telephony. The long-term plan is an A
 
 One-time setup (done by a family member once, ~5 minutes): preferred language, LPG provider and consumer number, courier preferences, Android permissions. After that, the parent never configures anything again.
 
----
 
-## License
-
-MIT
