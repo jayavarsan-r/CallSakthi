@@ -1,8 +1,8 @@
 # CallSakthi
 
-> **What if your parents never had to navigate "Press 1 for English" ever again?**
+**AI-powered phone agent for Bharat — in the language people actually speak.**
 
-CallSakthi is an AI-powered phone agent for Bharat. An elderly user sends a WhatsApp voice note in Tamil or Hindi — CallSakthi transcribes it, understands the intent, confirms with the user, then navigates the provider's IVR autonomously to complete the task. The result comes back as a Tamil voice note.
+CallSakthi lets elderly users send a WhatsApp voice note in Tamil or Hindi, then autonomously navigates the provider's IVR to complete the task — booking an LPG cylinder, tracking a courier, checking a balance — and replies with a Tamil voice note confirming the result.
 
 No app to install. No account to create. No English required.
 
@@ -10,22 +10,22 @@ No app to install. No account to create. No English required.
 
 ## The Problem
 
-India has 300M+ people who struggle with automated phone systems. LPG cylinder booking alone requires navigating a 4-step IVR in Hindi — a language many Tamil or Telugu speakers are not comfortable with. The elderly and semi-literate either give up or depend on a family member to make the call.
+India has over 300 million people who struggle with automated phone systems. Booking an LPG cylinder alone requires navigating a 4-step Hindi IVR — a barrier for Tamil or Telugu speakers, the elderly, and the semi-literate. Most either give up or depend on a family member to place the call.
 
 CallSakthi removes that dependency entirely.
 
 ---
 
-## Product Vision
+## How It Works
 
 ```
-User sends voice note (Tamil/Hindi/English)
+User sends WhatsApp voice note (Tamil / Hindi / English)
         ↓
-CallSakthi transcribes + extracts intent
+CallSakthi transcribes and extracts intent (Sarvam STT + Gemini)
         ↓
-Confirms: "Shall I book your Indane cylinder? Reply ஆமா."
+Sends confirmation: "Shall I book your Indane cylinder? Reply ஆமா."
         ↓
-Places the call — navigates the IVR autonomously
+Places the call — navigates the IVR autonomously (SakthiFlow)
         ↓
 Replies with Tamil voice note: "உங்கள் cylinder book ஆச்சு! Ref: IND78934"
 ```
@@ -69,10 +69,10 @@ The interface is WhatsApp — already installed, already trusted.
 |-----------|----------|---------|
 | SakthiFlow | `src/core/sakthiflow.js` | Per-call IVR navigation state machine |
 | Intent Extractor | `src/core/intent-extractor.js` | Gemini-powered intent parsing |
-| Mock IVR Engine | `src/core/mock-ivr-engine.js` | Realistic IVR simulation for demo/testing |
+| Mock IVR Engine | `src/core/mock-ivr-engine.js` | Realistic IVR simulation for testing and demos |
 | Task Executor | `src/core/task-executor.js` | End-to-end task orchestration |
-| Confirmation | `src/core/confirmation.js` | User confirmation before execution |
-| Gemini Service | `src/services/gemini.js` | LLM navigation + heuristic fallback |
+| Confirmation | `src/core/confirmation.js` | User confirmation gate before execution |
+| Gemini Service | `src/services/gemini.js` | LLM navigation with heuristic fallback |
 | Sarvam Service | `src/services/sarvam.js` | Tamil/Hindi STT and TTS |
 | DB | `src/services/db.js` | SQLite via better-sqlite3 |
 
@@ -80,24 +80,24 @@ The interface is WhatsApp — already installed, already trusted.
 
 | Route | Purpose |
 |-------|---------|
-| `GET /` | Cinematic landing page with video hero |
+| `GET /` | Landing page |
 | `GET /demo` | Live split-screen demo with SSE streaming |
-| `GET /playground` | Inside SakthiFlow — step-by-step AI decision trace |
-| `GET /metrics` | Reliability data + incident learnings |
+| `GET /playground` | Step-by-step AI decision trace inside SakthiFlow |
+| `GET /metrics` | Reliability data and incident learnings |
 | `POST /whatsapp` | Twilio WhatsApp webhook |
 | `POST /voice` | Twilio Voice webhook |
 | `GET /health` | Health check |
 
 ---
 
-## SakthiFlow — The Core Innovation
+## SakthiFlow
 
-SakthiFlow is a from-scratch IVR navigation agent. No LangChain. No agent framework. No hardcoded decision trees.
+SakthiFlow is the core IVR navigation agent — built from scratch with no LangChain, no agent framework, and no hardcoded decision trees.
 
 ### How a call works
 
 1. The IVR speaks. SakthiFlow listens.
-2. Gemini reads the full IVR prompt + call history and returns one decision:
+2. Gemini reads the full IVR prompt and call history, then returns a single decision:
    - `dtmf` — press a key
    - `speak` — say a number or phrase
    - `wait` — pause for IVR processing
@@ -108,9 +108,9 @@ SakthiFlow is a from-scratch IVR navigation agent. No LangChain. No agent framew
 
 ### Reliability guarantees
 
-- **Confirmation gate** — no action taken without user confirmation
-- **Heuristic fallback** — if Gemini is unavailable (quota, network), a deterministic rule-based navigator takes over and covers the full LPG + courier flow
-- **Hard step cap** — max 12 decisions per call; beyond that, task is declared failed rather than looping indefinitely
+- **Confirmation gate** — no action is taken without explicit user confirmation
+- **Heuristic fallback** — if Gemini is unavailable (quota or network), a deterministic rule-based navigator covers the full LPG and courier flow
+- **Hard step cap** — maximum 12 decisions per call; beyond that, the task is declared failed rather than looping indefinitely
 - **Zero-API-key mode** — fully offline mock mode for local development and demos
 
 ### Decision engine
@@ -124,100 +124,13 @@ Gemini receives:
 Gemini returns:
   { action: "dtmf", value: "1", reasoning: "Main menu — press 1 for LPG booking" }
 
-On quota failure:
-  heuristicNavigate() takes over — ordered regex matching:
+On quota failure, heuristicNavigate() takes over — ordered regex matching:
   1. Completion signals   → action: complete
   2. Confirmation menus  → action: dtmf "1"
   3. Number entry        → action: speak <consumer_number>
   4. Main menus          → action: dtmf "1"
   5. Generic fallback    → action: dtmf "1"
 ```
-
----
-
-## Companion App — Future Vision
-
-While the hackathon version uses WhatsApp and Twilio, the long-term vision is an Android companion app that places calls using the parent's own SIM card.
-
-### Why this matters
-
-Current telephony (Twilio) requires a third-party number. Service providers see an unknown caller, which can cause rejections for account-linked IVRs (e.g., LPG booking requires the registered mobile number).
-
-The companion app solves this at the root.
-
-### Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│              CallSakthi Companion App (Android)              │
-│                                                               │
-│  ┌──────────────────┐     ┌──────────────────────────────┐  │
-│  │   WhatsApp Layer  │     │     Android Call Manager     │  │
-│  │                   │     │                              │  │
-│  │  Voice note in   ─┼─►  │  Places call via user's SIM  │  │
-│  │  (Tamil/Hindi)    │     │  Sends DTMF tones            │  │
-│  │                   │     │  Reads IVR audio (ASR)       │  │
-│  └──────────────────┘     └──────────────────────────────┘  │
-│             │                           │                     │
-│             ▼                           ▼                     │
-│  ┌──────────────────────────────────────────────────────┐    │
-│  │              CallSakthi Backend (Cloud)               │    │
-│  │                                                        │    │
-│  │  Intent Extraction (Gemini)                           │    │
-│  │  SakthiFlow Decision Engine                           │    │
-│  │  DTMF Command Generator                               │    │
-│  │  Result Summarizer (Tamil TTS via Sarvam)             │    │
-│  └──────────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### One-time setup (5 minutes, done by family member)
-
-- Preferred language
-- LPG provider + consumer number
-- Courier preferences
-- Emergency contacts
-- Android permissions (CALL_PHONE, READ_CALL_LOG, accessibility)
-
-After setup, the parent never configures anything again.
-
-### Supported use cases (v1)
-
-- LPG cylinder booking (Indane, HP Gas, Bharat Gas)
-- Courier tracking (DTDC, India Post, Delhivery)
-- Utility bill inquiry
-- Prepaid mobile recharge
-- Banking balance check (structured IVR only)
-
-### Technical approach
-
-**Android telephony stack:**
-- `TelecomManager.placeCall()` for outbound calls via user's SIM
-- `AudioRecord` + Sarvam STT to transcribe IVR audio in real time
-- `TelecomConnection.sendDtmf()` for key presses
-- Accessibility Service as fallback for IVR audio capture
-
-**Backend command protocol:**
-```json
-{
-  "call": "+18001234567",
-  "steps": [
-    { "wait": 3000 },
-    { "dtmf": "1" },
-    { "wait": 2000 },
-    { "speak": "1234567890" },
-    { "dtmf": "#" },
-    { "wait": 2000 },
-    { "dtmf": "1" }
-  ]
-}
-```
-
-**Why the user's own SIM matters:**
-- Providers authenticate by caller ID — accounts reject unknown numbers
-- No regulatory complexity around VoIP calling
-- No per-minute Twilio costs at scale
-- User's existing call history, trust, and account linkage preserved
 
 ---
 
@@ -231,10 +144,8 @@ After setup, the parent never configures anything again.
 | Speech-to-text / TTS | Sarvam AI |
 | WhatsApp | Twilio WhatsApp Sandbox |
 | Database | SQLite via `better-sqlite3` |
-| Deployment | Railway (zero-config) |
+| Deployment | Railway |
 | Local tunnel | ngrok |
-
-**Not used:** LangChain, LangGraph, vector databases, Next.js, React, any agent framework. SakthiFlow is built from scratch.
 
 ---
 
@@ -243,27 +154,29 @@ After setup, the parent never configures anything again.
 ```bash
 git clone <repo> && cd callsakthi
 npm install
-npm start          # boots in mock mode — zero config needed
+npm start
 ```
 
-Open `http://localhost:3000`. Everything works without any API keys.
+Open `http://localhost:3000`. Everything works without API keys — the app starts in mock mode automatically.
 
-### Live mode
+### Environment variables
 
-Copy `.env.example` to `.env` and fill in your keys:
+Copy `.env.example` to `.env` and fill in keys for live mode:
 
 ```bash
 cp .env.example .env
 ```
 
-| Key | Source |
-|-----|--------|
-| `GEMINI_API_KEY` | https://aistudio.google.com (free tier) |
-| `SARVAM_API_KEY` | https://www.sarvam.ai (₹1000 free credits) |
+| Variable | Source |
+|----------|--------|
+| `GEMINI_API_KEY` | https://aistudio.google.com |
+| `SARVAM_API_KEY` | https://www.sarvam.ai |
 | `TWILIO_ACCOUNT_SID` | Twilio Console |
 | `TWILIO_AUTH_TOKEN` | Twilio Console |
 | `TWILIO_WHATSAPP_FROM` | Twilio WhatsApp Sandbox number |
-| `BASE_URL` | Your public URL (Railway / ngrok) |
+| `BASE_URL` | Your public URL (Railway or ngrok) |
+
+If no environment variables are set, the app runs entirely in mock mode — safe to demo without any credentials.
 
 ---
 
@@ -273,7 +186,7 @@ cp .env.example .env
 npm run harness
 ```
 
-Runs 6 end-to-end simulations fully offline — no API keys required:
+Runs 6 end-to-end simulations fully offline:
 
 | # | Test Case | Expected |
 |---|-----------|---------|
@@ -284,7 +197,6 @@ Runs 6 end-to-end simulations fully offline — no API keys required:
 | 5 | DTDC courier tracking (English) | COMPLETE |
 | 6 | Tamil courier tracking | COMPLETE |
 
-Output:
 ```
 ╔══════════════════════════════════════╗
 ║            RESULTS                   ║
@@ -304,63 +216,20 @@ Results populate `/metrics` automatically after the run.
 
 ### Railway (recommended)
 
-1. Push to GitHub
-2. [railway.app](https://railway.app) → New Project → Deploy from GitHub
-3. Settings → Variables:
-
-| Variable | Required for |
-|----------|-------------|
-| `GEMINI_API_KEY` | Real LLM navigation |
-| `SARVAM_API_KEY` | Real STT/TTS |
-| `TWILIO_ACCOUNT_SID` | Live WhatsApp |
-| `TWILIO_AUTH_TOKEN` | Live WhatsApp |
-| `TWILIO_WHATSAPP_FROM` | Live WhatsApp |
-| `BASE_URL` | Your Railway app URL |
-
-4. Deploy. App starts in mock mode if no secrets are set — safe to demo without keys.
-5. Set Twilio WhatsApp sandbox webhook to `https://<your-app>.railway.app/whatsapp`.
+1. Push the repo to GitHub.
+2. Go to [railway.app](https://railway.app) → New Project → Deploy from GitHub.
+3. Add environment variables under Settings → Variables.
+4. Deploy. The app starts in mock mode if secrets are absent.
+5. Set the Twilio WhatsApp sandbox webhook to `https://<your-app>.railway.app/whatsapp`.
 
 ### Local with tunnel
 
 ```bash
-npm run tunnel     # starts ngrok on port 3000
-npm start          # in a second terminal
+npm run tunnel   # starts ngrok on port 3000
+npm start        # in a second terminal
 ```
 
-The startup block will print the tunnel URL and the exact webhook URL to paste into Twilio.
-
----
-
-## Demo Guide (for judges — 2 minutes)
-
-| Page | What you see |
-|------|-------------|
-| `/` | Cinematic landing with AI-generated video background |
-| `/demo` | Split-screen — WhatsApp left, AI execution timeline right |
-| `/playground` | Three-column detective view — state machine, IVR prompt, Gemini reasoning |
-| `/metrics` | Trust page — reliability data + engineering incident learnings |
-
-**Suggested path:**
-1. `/` — watch the video, read the hero copy
-2. `/demo` — click "Tamil LPG", hit Run, watch both sides animate
-3. `/playground` — Start Investigation → click through every decision
-4. `/metrics` — expand the incident cards
-
----
-
-## Reliability Learnings
-
-### Gemini quota failures
-
-During development, Gemini's free tier hit quota limits mid-demo. Every Gemini call wraps in `try/catch`; on any failure, execution falls through to `heuristicNavigate()`. The harness validates both paths. Run without a `GEMINI_API_KEY` to verify the fallback.
-
-### Consumer number hash bug
-
-An early version entered the consumer number without a trailing `#` even when the IVR said "followed by hash." The IVR would time out. Fix: `heuristicNavigate()` checks `/hash|pound|#/.test(prompt)` and appends `#` only when explicitly requested. Without this, "consumer number confirmed, press 1" would misfire on the number-entry rule.
-
-### Fallback ordering strategy
-
-The heuristic navigator uses ordered regex matching: completion signals first, then confirmation menus, then number-entry prompts, then main menus. Ordering matters — a naive implementation matches the wrong rule and loops indefinitely.
+The startup output prints the tunnel URL and the exact webhook URL to configure in Twilio.
 
 ---
 
@@ -373,7 +242,7 @@ src/
   core/
     intent-extractor.js   Gemini-powered intent parsing
     sakthiflow.js         IVR navigation state machine
-    mock-ivr-engine.js    realistic IVR simulation (Indane, HP, Bharat, DTDC)
+    mock-ivr-engine.js    IVR simulation (Indane, HP Gas, Bharat Gas, DTDC)
     task-executor.js      end-to-end orchestration
     confirmation.js       WhatsApp confirmation flow
   routes/
@@ -390,13 +259,74 @@ src/
     db.js                 SQLite (users, tasks, call_logs)
   utils/
     audio.js              audio file management
-    speaker.js            optional local playback (opt-in, never in prod)
     logger.js             structured logging
     ngrok.js              ngrok tunnel detection
 scripts/
   harness.js              end-to-end eval harness (npm run harness)
 public/
-  video/
-    hero.mp4              stitched AI-generated video (7 scenes × 10s)
   audio/                  TTS output files (auto-cleaned)
 ```
+
+---
+
+## Engineering Notes
+
+### Gemini quota failures
+
+Gemini's free tier can hit quota limits mid-session. Every Gemini call is wrapped in `try/catch`; on any failure, execution falls through to `heuristicNavigate()`. The harness validates both the AI and fallback paths. Run without a `GEMINI_API_KEY` to exercise the fallback directly.
+
+### Consumer number trailing hash
+
+An early version entered the consumer number without a trailing `#` even when the IVR prompt said "followed by hash." The IVR would time out. Fix: `heuristicNavigate()` checks `/hash|pound|#/.test(prompt)` and appends `#` only when explicitly requested.
+
+### Fallback ordering
+
+The heuristic navigator uses ordered regex matching: completion signals first, then confirmation menus, then number-entry prompts, then main menus. Order is significant — a naive implementation can match the wrong rule and loop indefinitely.
+
+---
+
+## Future: Companion App (Android)
+
+The current implementation uses Twilio for telephony. The long-term plan is an Android companion app that places calls using the parent's own SIM card.
+
+**Why this matters:** Providers authenticate by caller ID. Account-linked IVRs (such as LPG booking) reject calls from unknown numbers. Using the user's own SIM resolves this at the root and eliminates per-minute Twilio costs at scale.
+
+### Supported use cases (v1 scope)
+
+- LPG cylinder booking (Indane, HP Gas, Bharat Gas)
+- Courier tracking (DTDC, India Post, Delhivery)
+- Utility bill inquiry
+- Prepaid mobile recharge
+- Banking balance check (structured IVR only)
+
+### Android telephony stack
+
+- `TelecomManager.placeCall()` — outbound calls via user's SIM
+- `AudioRecord` + Sarvam STT — real-time IVR audio transcription
+- `TelecomConnection.sendDtmf()` — key presses
+- Accessibility Service — fallback for IVR audio capture
+
+### Backend command protocol
+
+```json
+{
+  "call": "+18001234567",
+  "steps": [
+    { "wait": 3000 },
+    { "dtmf": "1" },
+    { "wait": 2000 },
+    { "speak": "1234567890" },
+    { "dtmf": "#" },
+    { "wait": 2000 },
+    { "dtmf": "1" }
+  ]
+}
+```
+
+One-time setup (done by a family member once, ~5 minutes): preferred language, LPG provider and consumer number, courier preferences, Android permissions. After that, the parent never configures anything again.
+
+---
+
+## License
+
+MIT
