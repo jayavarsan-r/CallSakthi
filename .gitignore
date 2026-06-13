@@ -1,0 +1,11 @@
+node_modules/
+.env
+public/audio/*
+!public/audio/.gitkeep
+*.log
+.DS_Store
+
+# Local SQLite database (replaces Supabase)
+callsakthi.db
+callsakthi.db-wal
+callsakthi.db-shm

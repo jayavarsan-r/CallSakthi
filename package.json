@@ -1,0 +1,31 @@
+{
+  "name": "callsakthi",
+  "version": "1.0.0",
+  "description": "WhatsApp AI phone agent for Bharat",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "tunnel": "ngrok http 3000",
+    "harness": "node scripts/harness.js",
+    "harness:flow": "node scripts/test-sakthiflow.js"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "axios": "^1.7.0",
+    "better-sqlite3": "^12.10.0",
+    "dotenv": "^16.4.0",
+    "express": "^4.19.0",
+    "form-data": "^4.0.0",
+    "multer": "^1.4.5-lts.1",
+    "play-sound": "^1.1.6",
+    "twilio": "^5.3.0",
+    "uuid": "^10.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}
